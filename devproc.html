@@ -1,0 +1,157 @@
+<html>
+<head>
+    <title>FindOut Development Process</title>
+    <script src="http://threejs.org/build/three.js"></script>
+    <script src="http://threejs.org/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        body {
+            font-family: Monospace;
+            background-color: #a8ddf8;
+            margin: 0px;
+            overflow: hidden;
+
+        }
+        div {
+        }
+    </style>
+</head>
+<script>
+    var controls, scene, camera, box, spline, curve, timer, counter = 0, previousCounter = 0, changed = true;
+
+    var tangent = new THREE.Vector3();
+    var axis = new THREE.Vector3();
+    var up = new THREE.Vector3(0, 1, 0);
+
+    var CurvePart = function(curve, start, end) {
+        var partLength = end - start;
+        return {
+            getPointAt: function(u) {
+                return curve.getPointAt(start + u * partLength);
+            },
+            getTangentAt: function(u) {
+                return curve.getTangentAt(start + u * partLength);
+            }
+        };
+    };
+
+    function addTubePart(from, to, color) {
+        var curvePart = new CurvePart(curve, from, to);
+        var tube = new THREE.TubeGeometry(curvePart, 1, 5, 5, false, false);
+        var tm = new THREE.Mesh(tube, new THREE.MeshLambertMaterial({
+            color: color
+        }));
+        scene.add(tm);
+    }
+    function init() {
+        renderer = new THREE.WebGLRenderer({alpha: true});
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('content').appendChild(renderer.domElement);
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 5000);
+        camera.position.set(0, 0, 600);
+        camera.lookAt(new THREE.Vector3(0, 100, 0));
+        scene = new THREE.Scene();
+        controls = new THREE.OrbitControls(camera, render.domElement);
+        controls.addEventListener("change", function() {changed = true;});
+
+        scene.add( new THREE.AmbientLight( 0x888888 ) );
+
+        var pointLight = new THREE.PointLight( 0x888888 , 10, 1000);
+        pointLight.position.set(-50, 200, 20);
+        scene.add( pointLight );
+
+        var numPoints = 50;
+
+        spline = new THREE.SplineCurve3([
+            new THREE.Vector3(0, 0, 0),
+            new THREE.Vector3(0, 200, 0),
+            new THREE.Vector3(150, 150, 0),
+            new THREE.Vector3(150, 50, 0),
+            new THREE.Vector3(250, 100, 0),
+            new THREE.Vector3(250, 300, 0)]);
+
+        curve = new THREE.Curve.create(
+            function() {
+
+            },
+            function(t) {
+                var r = 125, turns = 5, height = 250;
+                return new THREE.Vector3(
+                    Math.sin(2.0 * Math.PI * t * turns,
+                    t * height,
+                    Math.cos(2.0 * Math.PI * t * turns))
+                );
+            }
+        );
+        curve = spline;
+
+
+        var material = new THREE.LineBasicMaterial({
+            color: 0xff00f0,
+        });
+
+        var geometry = new THREE.Geometry();
+        var curvePoints = curve.getPoints(numPoints);
+
+        for (var i = 0; i < curvePoints.length; i++) {
+            geometry.vertices.push(curvePoints[i]);
+        }
+
+        var line = new THREE.Line(geometry, material);
+        scene.add(line);
+        // the moving box
+        geometry = new THREE.CubeGeometry(5, 40, 4);
+        material = new THREE.MeshBasicMaterial({
+            color: 0xff0000
+        });
+        box = new THREE.Mesh(geometry, material);
+        scene.add(box);
+
+        animate();
+    }
+
+    function run() {
+        counter = 0;
+        previousCounter = 0;
+        timer = setInterval(moveBox, 100);
+    }
+
+    var colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff8080, 0x80ff80, 0x8080ff, 0xffff80, 0x808080, 0xffffff];
+
+    function moveBox() {
+        if (counter <= 1) {
+            box.position = curve.getPointAt(counter);
+            tangent = curve.getTangentAt(counter).normalize();
+            axis.crossVectors(up, tangent).normalize();
+            var radians = Math.acos(up.dot(tangent));
+            box.quaternion.setFromAxisAngle(axis, radians);
+
+            if (previousCounter < counter) {
+                addTubePart(previousCounter, counter, colors[Math.floor(counter * 10) % 4]);
+            }
+            previousCounter = counter;
+            counter += 0.005
+            changed = true;
+        } else {
+            counter = 0;
+            clearInterval(timer);
+        }
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        render();
+    }
+
+    function render() {
+        controls.update();
+        if (changed) {
+            renderer.render(scene, camera);
+            changed = false;
+        }
+    }
+</script>
+<body onLoad="init()">
+    <div><input id="animate" type="button" value="Run" onclick="run()"/></div>
+    <div id="content"></div>
+</body>
+</html>
