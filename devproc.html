@@ -16,7 +16,7 @@
     </style>
 </head>
 <script>
-    var controls, scene, camera, box, spline, curve, timer, counter = 0, previousCounter = 0, changed = true;
+    var controls, scene, camera, box, curve, timer, counter = 0, previousCounter = 0, changed = true;
 
     var tangent = new THREE.Vector3();
     var axis = new THREE.Vector3();
@@ -42,12 +42,28 @@
         }));
         scene.add(tm);
     }
+
+    var HelixCurve = new THREE.Curve.create(
+            function(r, turns, height) {
+                this.r = r;
+                this.turns = turns;
+                this.height = height;
+            },
+            function(t) {
+                return new THREE.Vector3(
+                                this.r * Math.sin(2.0 * Math.PI * t * this.turns),
+                                t * this.height,
+                                this.r * Math.cos(2.0 * Math.PI * t * this.turns)
+                );
+            }
+    );
+
     function init() {
         renderer = new THREE.WebGLRenderer({alpha: true});
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.getElementById('content').appendChild(renderer.domElement);
         camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 5000);
-        camera.position.set(0, 0, 600);
+        camera.position.set(-600, 200, 300);
         camera.lookAt(new THREE.Vector3(0, 100, 0));
         scene = new THREE.Scene();
         controls = new THREE.OrbitControls(camera, render.domElement);
@@ -59,31 +75,9 @@
         pointLight.position.set(-50, 200, 20);
         scene.add( pointLight );
 
-        var numPoints = 50;
+        var numPoints = 200;
 
-        spline = new THREE.SplineCurve3([
-            new THREE.Vector3(0, 0, 0),
-            new THREE.Vector3(0, 200, 0),
-            new THREE.Vector3(150, 150, 0),
-            new THREE.Vector3(150, 50, 0),
-            new THREE.Vector3(250, 100, 0),
-            new THREE.Vector3(250, 300, 0)]);
-
-        curve = new THREE.Curve.create(
-            function() {
-
-            },
-            function(t) {
-                var r = 125, turns = 5, height = 250;
-                return new THREE.Vector3(
-                    Math.sin(2.0 * Math.PI * t * turns,
-                    t * height,
-                    Math.cos(2.0 * Math.PI * t * turns))
-                );
-            }
-        );
-        curve = spline;
-
+        curve = new HelixCurve(125, 3, 150);
 
         var material = new THREE.LineBasicMaterial({
             color: 0xff00f0,
@@ -91,13 +85,13 @@
 
         var geometry = new THREE.Geometry();
         var curvePoints = curve.getPoints(numPoints);
-
         for (var i = 0; i < curvePoints.length; i++) {
             geometry.vertices.push(curvePoints[i]);
         }
 
         var line = new THREE.Line(geometry, material);
         scene.add(line);
+
         // the moving box
         geometry = new THREE.CubeGeometry(5, 40, 4);
         material = new THREE.MeshBasicMaterial({
@@ -105,6 +99,7 @@
         });
         box = new THREE.Mesh(geometry, material);
         scene.add(box);
+        setBoxPos();
 
         animate();
     }
@@ -117,14 +112,16 @@
 
     var colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff8080, 0x80ff80, 0x8080ff, 0xffff80, 0x808080, 0xffffff];
 
+    function setBoxPos() {
+        box.position = curve.getPointAt(counter);
+        tangent = curve.getTangentAt(counter).normalize();
+        axis.crossVectors(up, tangent).normalize();
+        var radians = Math.acos(up.dot(tangent));
+        box.quaternion.setFromAxisAngle(axis, radians);
+    }
     function moveBox() {
         if (counter <= 1) {
-            box.position = curve.getPointAt(counter);
-            tangent = curve.getTangentAt(counter).normalize();
-            axis.crossVectors(up, tangent).normalize();
-            var radians = Math.acos(up.dot(tangent));
-            box.quaternion.setFromAxisAngle(axis, radians);
-
+            setBoxPos();
             if (previousCounter < counter) {
                 addTubePart(previousCounter, counter, colors[Math.floor(counter * 10) % 4]);
             }
