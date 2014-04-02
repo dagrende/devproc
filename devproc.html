@@ -16,11 +16,8 @@
     </style>
 </head>
 <script>
-    var controls, scene, camera, airPlane, curve, timer, counter = 0, previousCounter = 0, changed = true;
+    var controls, scene, camera, airPlane, curve, timer, counter = 0, previousCounter = 0, changed = true, smokeTrail;
 
-    var tangent = new THREE.Vector3();
-    var axis = new THREE.Vector3();
-    var up = new THREE.Vector3(0, 1, 0);
 
     var CurvePart = function(curve, start, end) {
         var partLength = end - start;
@@ -33,13 +30,6 @@
             }
         };
     };
-
-    function addTubePart(from, to, color) {
-        var curvePart = new CurvePart(curve, from, to);
-        var tube = new THREE.TubeGeometry(curvePart, 1, 5, 5, false, false);
-        var tm = new THREE.Mesh(tube, new THREE.MeshLambertMaterial({color: color}));
-        scene.add(tm);
-    }
 
     var HelixCurve = new THREE.Curve.create(
         function(r, turns, height) {
@@ -56,6 +46,75 @@
         }
     );
 
+    function makeAirPlane() {
+        var bodySpline = new THREE.SplineCurve3([
+            new THREE.Vector3(0, 0, 0),
+            new THREE.Vector3(1, 0, 0),
+            new THREE.Vector3(2.5, 0, 5),
+            new THREE.Vector3(2.5, 0, 10),
+            new THREE.Vector3(1, 0, 25),
+            new THREE.Vector3(1, 0, 40)
+        ]);
+        var bodyPoints = bodySpline.getPoints(50);
+        bodyPoints.push(new THREE.Vector3(0, 0, 40));
+        bodyPoints.push(new THREE.Vector3(0, 0, 0));
+        var bodyGeom = new THREE.LatheGeometry(bodyPoints);
+        bodyGeom.applyMatrix(new THREE.Matrix4().makeRotationX(Math.PI / 2.0));
+
+        // make and add right wing
+        var wingSpline = new THREE.SplineCurve([
+            new THREE.Vector2(2, 0),
+            new THREE.Vector2(1.5, 20),
+            new THREE.Vector2(1.1, 45),
+            new THREE.Vector2(1, 49),
+            new THREE.Vector2(.5, 50),
+            new THREE.Vector2(0, 49),
+            new THREE.Vector2(0, 25),
+            new THREE.Vector2(0, 0),
+            new THREE.Vector2(2, 0)
+        ]);
+        var wingShape = new THREE.Shape(wingSpline.getPoints(100));
+        var wingGeom = new THREE.ExtrudeGeometry(wingShape, {amount: 0.05, bevelEnabled: false});
+        var material = new THREE.MeshLambertMaterial({color: 0xffffff});
+        wingGeom.applyMatrix(new THREE.Matrix4().makeRotationY(Math.PI / 2.0));
+        wingGeom.applyMatrix(new THREE.Matrix4().makeRotationX(Math.PI / 2.0));
+        wingGeom.applyMatrix(new THREE.Matrix4().makeTranslation(0, -10, 0));
+        THREE.GeometryUtils.merge(bodyGeom, wingGeom);
+        // add left wing
+        wingGeom.applyMatrix(new THREE.Matrix4().makeRotationY(Math.PI));
+        THREE.GeometryUtils.merge(bodyGeom, wingGeom);
+
+        // make and add rudder
+        var rudderShape = new THREE.Shape([
+            new THREE.Vector2(0, 0),
+            new THREE.Vector2(0, 4),
+            new THREE.Vector2(-8, 3.5),
+            new THREE.Vector2(-8, 1),
+            new THREE.Vector2(0, 0)
+        ]);
+        var rudderGeom = new THREE.ExtrudeGeometry(rudderShape, {amount: 0.05, bevelEnabled: false});
+        rudderGeom.applyMatrix(new THREE.Matrix4().makeTranslation(0, -40, 0));
+        THREE.GeometryUtils.merge(bodyGeom, rudderGeom);
+
+        // make and add stabilizer
+        var stabilizerShape = new THREE.Shape([
+            new THREE.Vector2(0, 0),
+            new THREE.Vector2(-8, 1),
+            new THREE.Vector2(-8, 3.5),
+            new THREE.Vector2(0, 4),
+            new THREE.Vector2(8, 3.5),
+            new THREE.Vector2(8, 1),
+            new THREE.Vector2(0, 0)
+        ]);
+        var stabilizerGeom = new THREE.ExtrudeGeometry(stabilizerShape, {amount: 0.05, bevelEnabled: false});
+        stabilizerGeom.applyMatrix(new THREE.Matrix4().makeRotationY(Math.PI / 2.0));
+        stabilizerGeom.applyMatrix(new THREE.Matrix4().makeTranslation(-8, -40, 0));
+        THREE.GeometryUtils.merge(bodyGeom, stabilizerGeom);
+        bodyGeom.applyMatrix(new THREE.Matrix4().makeTranslation(0, 50, 0));
+
+        var plane = new THREE.Mesh(bodyGeom, material);
+        return plane;
+    }
     function init() {
         renderer = new THREE.WebGLRenderer({alpha: true});
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -93,79 +152,10 @@
         var line = new THREE.Line(geometry, material);
         scene.add(line);
 
-        // the airplane
-        var bodySpline = new THREE.SplineCurve3([
-            new THREE.Vector3(0, 0, 0),
-            new THREE.Vector3(1, 0, 0),
-            new THREE.Vector3(2.5, 0, 5),
-            new THREE.Vector3(2.5, 0, 10),
-            new THREE.Vector3(1, 0, 25),
-            new THREE.Vector3(1, 0, 40)
-        ]);
-        var bodyPoints = bodySpline.getPoints(50);
-        bodyPoints.push(new THREE.Vector3(0, 0, 40));
-        bodyPoints.push(new THREE.Vector3(0, 0, 0));
-        var bodyGeom = new THREE.LatheGeometry(bodyPoints);
-        bodyGeom.applyMatrix(new THREE.Matrix4().makeRotationX(Math.PI / 2.0));
-
-        // make and add right wing
-        var wingSpline = new THREE.SplineCurve([
-            new THREE.Vector2(2, 0),
-            new THREE.Vector2(1.5, 20),
-            new THREE.Vector2(1.1, 45),
-            new THREE.Vector2(1, 49),
-            new THREE.Vector2(.5, 50),
-            new THREE.Vector2(0, 49),
-            new THREE.Vector2(0, 25),
-            new THREE.Vector2(0, 0),
-            new THREE.Vector2(2, 0)
-        ]);
-        var wingShape = new THREE.Shape(wingSpline.getPoints(100));
-        var wingGeom = new THREE.ExtrudeGeometry(wingShape, {amount: 0.05, bevelEnabled: false});
-        material = new THREE.MeshLambertMaterial({color: 0xffffff});
-        wingGeom.applyMatrix(new THREE.Matrix4().makeRotationY(Math.PI / 2.0));
-        wingGeom.applyMatrix(new THREE.Matrix4().makeRotationX(Math.PI / 2.0));
-        wingGeom.applyMatrix(new THREE.Matrix4().makeTranslation(0, -10, 0));
-        THREE.GeometryUtils.merge(bodyGeom, wingGeom);
-        // add left wing
-        wingGeom.applyMatrix(new THREE.Matrix4().makeRotationY(Math.PI));
-        THREE.GeometryUtils.merge(bodyGeom, wingGeom);
-
-        // make and add rudder
-        var rudderShape = new THREE.Shape([
-            new THREE.Vector2(0, 0),
-            new THREE.Vector2(0, 4),
-            new THREE.Vector2(-8, 3.5),
-            new THREE.Vector2(-8, 1),
-            new THREE.Vector2(0, 0)
-        ]);
-        var rudderGeom = new THREE.ExtrudeGeometry(rudderShape, {amount: 0.05, bevelEnabled: false});
-        rudderGeom.applyMatrix(new THREE.Matrix4().makeTranslation(0, -40, 0));
-        THREE.GeometryUtils.merge(bodyGeom, rudderGeom);
-
-        // make and add stabilizer
-        var stabilizerShape = new THREE.Shape([
-            new THREE.Vector2(0, 0),
-            new THREE.Vector2(-8, 1),
-            new THREE.Vector2(-8, 3.5),
-            new THREE.Vector2(0, 4),
-            new THREE.Vector2(8, 3.5),
-            new THREE.Vector2(8, 1),
-            new THREE.Vector2(0, 0)
-        ]);
-        var stabilizerGeom = new THREE.ExtrudeGeometry(stabilizerShape, {amount: 0.05, bevelEnabled: false});
-        stabilizerGeom.applyMatrix(new THREE.Matrix4().makeRotationY(Math.PI / 2.0));
-        stabilizerGeom.applyMatrix(new THREE.Matrix4().makeTranslation(-8, -40, 0));
-        THREE.GeometryUtils.merge(bodyGeom, stabilizerGeom);
-        bodyGeom.applyMatrix(new THREE.Matrix4().makeTranslation(0, 50, 0));
-
-
-        airPlane = new THREE.Mesh(bodyGeom, material);
-
-
+        airPlane = makeAirPlane();;
         scene.add(airPlane);
-        setBoxPos();
 
+        setBoxPos();
         animate();
     }
 
@@ -178,12 +168,33 @@
     var colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff8080, 0x80ff80, 0x8080ff, 0xffff80, 0x808080, 0xffffff];
 
     function setBoxPos() {
+        var tangent = new THREE.Vector3();
+        var axis = new THREE.Vector3();
+        var up = new THREE.Vector3(0, 1, 0);
         airPlane.position = curve.getPointAt(counter);
         tangent = curve.getTangentAt(counter).normalize();
         axis.crossVectors(up, tangent).normalize();
         var radians = Math.acos(up.dot(tangent));
         airPlane.quaternion.setFromAxisAngle(axis, radians);
     }
+
+    function addTubePart(from, to, color) {
+        var curvePart = new CurvePart(curve, from, to);
+        var tube = new THREE.TubeGeometry(curvePart, 1, 5, 5, false, false);
+        var tm = new THREE.Mesh(tube, new THREE.MeshLambertMaterial({color: color}));
+        scene.add(tm);
+    }
+
+    function addSmokeTrail(from, to, color) {
+        if (smokeTrail) {
+            scene.remove(smokeTrail);
+        }
+        var curvePart = new CurvePart(curve, from, to);
+        var tube = new THREE.TubeGeometry(curvePart, 50, 5, 5, false, false);
+        mokeTrail = new THREE.Mesh(tube, new THREE.MeshLambertMaterial({color: color}));
+        scene.add(mokeTrail);
+    }
+
     function moveBox() {
         if (counter <= 1) {
             setBoxPos();
@@ -201,11 +212,11 @@
 
     function animate() {
         requestAnimationFrame(animate);
+        controls.update();
         render();
     }
 
     function render() {
-        controls.update();
         if (changed) {
             renderer.render(scene, camera);
             changed = false;
