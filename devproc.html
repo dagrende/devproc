@@ -18,7 +18,7 @@
 <script>
 var controls, scene, camera, airPlane, curve, timer,
         curvePos = 0, previousCounter = 0, changed = true,
-        posEventHandler, bankAngle = 0;
+        posEventHandler, bankAngle = 0, running = true;
 
 var tangent = new THREE.Vector3();
 var axis = new THREE.Vector3();
@@ -34,53 +34,6 @@ var posEvents = [
         addTag(curve.getPointAt(curvePos), 'three');
     }}
 ];
-
-var CurvePart = function(curve, start, end) {
-    var partLength = end - start;
-    return {
-        getPointAt: function(u) {
-            return curve.getPointAt(start + u * partLength);
-        },
-        getTangentAt: function(u) {
-            return curve.getTangentAt(start + u * partLength);
-        }
-    };
-};
-
-function addTubePart(from, to, color) {
-    var curvePart = new CurvePart(curve, from, to);
-    var tube = new THREE.TubeGeometry(curvePart, 1, 5, 5, false, false);
-    var tm = new THREE.Mesh(tube, new THREE.MeshLambertMaterial({color: color}));
-    scene.add(tm);
-}
-
-var HelixCurve = new THREE.Curve.create(
-        function(r, turns, height) {
-            this.r = r;
-            this.turns = turns;
-            this.height = height;
-        },
-        function(t) {
-            return new THREE.Vector3(
-                            this.r * Math.sin(2.0 * Math.PI * t * this.turns),
-                            t * this.height,
-                            this.r * Math.cos(2.0 * Math.PI * t * this.turns)
-            );
-        }
-);
-
-// posEvents is array of {pos: 0..1, event: function(pos) {...}}
-function PosEventHandler(posEvents) {
-    var pe = posEvents, i = 0;
-    return {
-        setPos: function(pos) {
-            while (i < pe.length && pe[i].pos <= pos) {
-
-                pe[i++].event(pos);
-            };
-        }
-    };
-}
 
 function init() {
     renderer = new THREE.WebGLRenderer({alpha: true});
@@ -130,7 +83,7 @@ function init() {
 function run() {
     curvePos = 0;
     previousCounter = 0;
-    timer = setInterval(moveBox, 50);
+    running = true;
 }
 
 var colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff8080, 0x80ff80, 0x8080ff, 0xffff80, 0x808080, 0xffffff];
@@ -205,7 +158,6 @@ function setBoxPos() {
     bankAngle += (leftTurn(curvePos + .02) - bankAngle) * 0.07;
     airPlane.rotation.set(
         bankAngle, Math.atan2(axis.x, axis.z) + Math.PI, -pitch,
-        bankAngle, Math.atan2(axis.x, axis.z) + Math.PI, -pitch,
         'YXZ');
 
     // add tag
@@ -224,12 +176,15 @@ function moveBox() {
         changed = true;
     } else {
         curvePos = 0;
-        clearInterval(timer);
+        running = false;
     }
 }
 
 function animate() {
-    requestAnimationFrame(animate);
+    requestAnimationFrame(animate, 1000 / 40);
+    if (running) {
+        moveBox();
+    }
     render();
 }
 
@@ -239,6 +194,53 @@ function render() {
         renderer.render(scene, camera);
         changed = false;
     }
+}
+
+var CurvePart = function(curve, start, end) {
+    var partLength = end - start;
+    return {
+        getPointAt: function(u) {
+            return curve.getPointAt(start + u * partLength);
+        },
+        getTangentAt: function(u) {
+            return curve.getTangentAt(start + u * partLength);
+        }
+    };
+};
+
+function addTubePart(from, to, color) {
+    var curvePart = new CurvePart(curve, from, to);
+    var tube = new THREE.TubeGeometry(curvePart, 1, 5, 5, false, false);
+    var tm = new THREE.Mesh(tube, new THREE.MeshLambertMaterial({color: color}));
+    scene.add(tm);
+}
+
+var HelixCurve = new THREE.Curve.create(
+        function(r, turns, height) {
+            this.r = r;
+            this.turns = turns;
+            this.height = height;
+        },
+        function(t) {
+            return new THREE.Vector3(
+                            this.r * Math.sin(2.0 * Math.PI * t * this.turns),
+                            t * this.height,
+                            this.r * Math.cos(2.0 * Math.PI * t * this.turns)
+            );
+        }
+);
+
+// posEvents is array of {pos: 0..1, event: function(pos) {...}}
+function PosEventHandler(posEvents) {
+    var pe = posEvents, i = 0;
+    return {
+        setPos: function(pos) {
+            while (i < pe.length && pe[i].pos <= pos) {
+
+                pe[i++].event(pos);
+            };
+        }
+    };
 }
 
 function makeAirPlane() {
@@ -313,7 +315,7 @@ function makeAirPlane() {
 
 </script>
 <body onLoad="init()">
-<div><input id="animate" type="button" value="Run" onclick="run()"/></div>
+<div><input id="animate" type="button" value="Rerun" onclick="run()"/></div>
 <div id="content"></div>
 </body>
 </html>
