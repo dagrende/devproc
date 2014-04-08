@@ -1,4 +1,3 @@
-
 <html>
 <head>
     <title>FindOut Development Process</title>
@@ -11,7 +10,6 @@
             background-color: #a8ddf8;
             margin: 0px;
             overflow: hidden;
-
         }
     </style>
 </head>
@@ -23,6 +21,8 @@ var controls, scene, camera, airPlane, curve, timer,
 var tangent = new THREE.Vector3();
 var axis = new THREE.Vector3();
 var up = new THREE.Vector3(0, 1, 0);
+
+// add code here to get invoked at specified curve positions (0=start, 1=end)
 var posEvents = [
     {pos: 0.3, event: function(curvePos) {
         addTag(curve.getPointAt(curvePos), 'one');
@@ -52,23 +52,25 @@ function init() {
     pointLight.position.set(-50, 200, 20);
     scene.add( pointLight );
 
-    var numPoints = 200;
+    // add ground
 
+
+    // make fly path
+    var numPoints = 200;
     curve = new THREE.CurvePath();
     curve.add(new THREE.LineCurve3(new THREE.Vector3(-800, 150, 125), new THREE.Vector3(0, 0, 125)));
     curve.add(new HelixCurve(125, 3, 150));
     curve.add(new THREE.LineCurve3(new THREE.Vector3(0, 150, 125), new THREE.Vector3(250, 150, 125)));
 
-    var material = new THREE.LineBasicMaterial({
-        color: 0xff00f0,
-    });
-
+    // show fly path with line
     var geometry = new THREE.Geometry();
     var curvePoints = curve.getPoints(numPoints);
     for (var i = 0; i < curvePoints.length; i++) {
         geometry.vertices.push(curvePoints[i]);
     }
-
+    var material = new THREE.LineBasicMaterial({
+        color: 0xff00f0,
+    });
     var line = new THREE.Line(geometry, material);
     scene.add(line);
 
@@ -104,51 +106,6 @@ function leftTurn(p) {
     return 0;
 }
 
-function addTag(pos, text) {
-    var stringCurve = new THREE.QuadraticBezierCurve3(
-            new THREE.Vector3(0,0,0),
-            new THREE.Vector3(0,0,5),
-            new THREE.Vector3(0,-3,12)
-    );
-    var stringPath = new THREE.CurvePath();
-    stringPath.add(stringCurve);
-    var curvedLine = new THREE.Line(stringPath.createPointsGeometry(20),
-            new THREE.LineBasicMaterial({color: 0x000000}));
-    curvedLine.position = pos;
-    curvedLine.rotation.y = Math.atan2(axis.x, axis.z) + Math.PI;
-    scene.add(curvedLine);
-
-    var tagShape = new THREE.Shape([
-        new THREE.Vector2(0, 0),
-        new THREE.Vector2(10, 10),
-        new THREE.Vector2(40, 10),
-        new THREE.Vector2(40, -10),
-        new THREE.Vector2(10, -10),
-        new THREE.Vector2(0, 0)
-    ]);
-    var tagGeom = new THREE.ExtrudeGeometry(tagShape, {amount: 0.005, bevelEnabled: false});
-    tagGeom.applyMatrix(new THREE.Matrix4().makeRotationZ(-.4));
-    tagGeom.applyMatrix(new THREE.Matrix4().makeTranslation(12,-3,0));
-    var tag = new THREE.Mesh(tagGeom, new THREE.MeshBasicMaterial({
-        color: 0xffffff,
-    }));
-    tag.position = pos;
-    tag.rotation.y = Math.atan2(axis.x, axis.z) + Math.PI / 2;
-    scene.add(tag);
-
-    var textGeom = new THREE.TextGeometry(text, {size: 3, height: .5});//, curveSegments: 6, font: "helvetiker", weight: "normal", style: "bold" });
-    textGeom.applyMatrix(new THREE.Matrix4().makeRotationZ(-.4));
-    textGeom.applyMatrix(new THREE.Matrix4().makeTranslation(25,-4,.1));
-    var text = new THREE.Mesh(textGeom, new THREE.MeshLambertMaterial({
-        color: 0x000000
-    }));
-    text.position = pos;
-    text.rotation.y = Math.atan2(axis.x, axis.z) + Math.PI / 2;
-    scene.add(text);
-
-
-}
-
 function setBoxPos() {
     airPlane.position = curve.getPointAt(curvePos);
     tangent = curve.getTangentAt(curvePos).normalize();
@@ -160,8 +117,6 @@ function setBoxPos() {
         bankAngle, Math.atan2(axis.x, axis.z) + Math.PI, -pitch,
         'YXZ');
 
-    // add tag
-    //addTag(airPlane.position);
     posEventHandler.setPos(curvePos);
 }
 
@@ -169,7 +124,7 @@ function moveBox() {
     if (curvePos <= 1) {
         setBoxPos();
         if (previousCounter < curvePos) {
-//                addTubePart(previousCounter, curvePos, colors[Math.floor(curvePos * 10) % 4]);
+            addTubePart(previousCounter, curvePos, colors[Math.floor(curvePos * 10) % 4]);
         }
         previousCounter = curvePos;
         curvePos += 0.0025
@@ -216,18 +171,18 @@ function addTubePart(from, to, color) {
 }
 
 var HelixCurve = new THREE.Curve.create(
-        function(r, turns, height) {
-            this.r = r;
-            this.turns = turns;
-            this.height = height;
-        },
-        function(t) {
-            return new THREE.Vector3(
-                            this.r * Math.sin(2.0 * Math.PI * t * this.turns),
-                            t * this.height,
-                            this.r * Math.cos(2.0 * Math.PI * t * this.turns)
-            );
-        }
+    function(r, turns, height) {
+        this.r = r;
+        this.turns = turns;
+        this.height = height;
+    },
+    function(t) {
+        return new THREE.Vector3(
+            this.r * Math.sin(2.0 * Math.PI * t * this.turns),
+            t * this.height,
+            this.r * Math.cos(2.0 * Math.PI * t * this.turns)
+        );
+    }
 );
 
 // posEvents is array of {pos: 0..1, event: function(pos) {...}}
@@ -236,7 +191,6 @@ function PosEventHandler(posEvents) {
     return {
         setPos: function(pos) {
             while (i < pe.length && pe[i].pos <= pos) {
-
                 pe[i++].event(pos);
             };
         }
@@ -311,6 +265,51 @@ function makeAirPlane() {
 
     var plane = new THREE.Mesh(bodyGeom, material);
     return plane;
+}
+
+function addTag(pos, text) {
+    var stringCurve = new THREE.QuadraticBezierCurve3(
+        new THREE.Vector3(0,0,0),
+        new THREE.Vector3(0,0,5),
+        new THREE.Vector3(0,-3,12)
+    );
+    var stringPath = new THREE.CurvePath();
+    stringPath.add(stringCurve);
+    var curvedLine = new THREE.Line(stringPath.createPointsGeometry(20),
+        new THREE.LineBasicMaterial({color: 0x000000}));
+    curvedLine.position = pos;
+    curvedLine.rotation.y = Math.atan2(axis.x, axis.z) + Math.PI;
+    scene.add(curvedLine);
+
+    var tagShape = new THREE.Shape([
+        new THREE.Vector2(0, 0),
+        new THREE.Vector2(10, 10),
+        new THREE.Vector2(40, 10),
+        new THREE.Vector2(40, -10),
+        new THREE.Vector2(10, -10),
+        new THREE.Vector2(0, 0)
+    ]);
+    var tagGeom = new THREE.ExtrudeGeometry(tagShape, {amount: 0.005, bevelEnabled: false});
+    tagGeom.applyMatrix(new THREE.Matrix4().makeRotationZ(-.4));
+    tagGeom.applyMatrix(new THREE.Matrix4().makeTranslation(12,-3,0));
+    var tag = new THREE.Mesh(tagGeom, new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+    }));
+    tag.position = pos;
+    tag.rotation.y = Math.atan2(axis.x, axis.z) + Math.PI / 2;
+    scene.add(tag);
+
+    var textGeom = new THREE.TextGeometry(text, {size: 3, height: .5});//, curveSegments: 6, font: "helvetiker", weight: "normal", style: "bold" });
+    textGeom.applyMatrix(new THREE.Matrix4().makeRotationZ(-.4));
+    textGeom.applyMatrix(new THREE.Matrix4().makeTranslation(25,-4,.1));
+    var text = new THREE.Mesh(textGeom, new THREE.MeshLambertMaterial({
+        color: 0x000000
+    }));
+    text.position = pos;
+    text.rotation.y = Math.atan2(axis.x, axis.z) + Math.PI / 2;
+    scene.add(text);
+
+
 }
 
 </script>
