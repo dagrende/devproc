@@ -24,13 +24,13 @@ var tangent = new THREE.Vector3();
 var axis = new THREE.Vector3();
 var up = new THREE.Vector3(0, 1, 0);
 var posEvents = [
-    {pos: 0.05, event: function(curvePos) {
+    {pos: 0.3, event: function(curvePos) {
         addTag(curve.getPointAt(curvePos), 'one');
     }},
-    {pos: 0.2, event: function(curvePos) {
+    {pos: 0.4, event: function(curvePos) {
         addTag(curve.getPointAt(curvePos), 'two');
     }},
-    {pos: 0.3, event: function(curvePos) {
+    {pos: 0.5, event: function(curvePos) {
         addTag(curve.getPointAt(curvePos), 'three');
     }}
 ];
@@ -39,9 +39,9 @@ function init() {
     renderer = new THREE.WebGLRenderer({alpha: true});
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.getElementById('content').appendChild(renderer.domElement);
-    camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 5000);
-    camera.position.set(-600, 200, 300);
-    camera.lookAt(new THREE.Vector3(0, 100, 0));
+    camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight, 1, 5000);
+    camera.position.set(-710, 150, 154);
+    camera.lookAt(new THREE.Vector3(0, 0, 0));
     scene = new THREE.Scene();
     controls = new THREE.OrbitControls(camera, render.domElement);
     controls.addEventListener("change", function() {changed = true;});
