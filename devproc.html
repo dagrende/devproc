@@ -4,6 +4,7 @@
     <script src="three.js"></script>
     <script src="OrbitControls.js"></script>
     <script src="helvetiker_regular.typeface.js"></script>
+    <script src="TerrainGeneration.js"></script>
     <style>
         body {
             font-family: Monospace;
@@ -15,8 +16,13 @@
 </head>
 <script>
 var controls, scene, camera, airPlane, curve, timer,
-        curvePos = 0, previousCounter = 0, changed = true,
-        posEventHandler, bankAngle = 0, running = true;
+    curvePos = 0, previousCounter = 0, changed = true,
+    posEventHandler, bankAngle = 0, running = true,
+    terrainWidth = 4096,
+    terrainHeight = 4096,
+    terrainSegments = 64,
+    terrainSmoothingFactor = 50;
+var texture = 'images/textures/grass.jpg';
 
 var tangent = new THREE.Vector3();
 var axis = new THREE.Vector3();
@@ -53,6 +59,7 @@ function init() {
     scene.add( pointLight );
 
     // add ground
+    scene.add(makeTerrain(terrainWidth, terrainHeight, terrainSegments, terrainSmoothingFactor, texture));
 
 
     // make fly path
@@ -60,7 +67,7 @@ function init() {
     curve = new THREE.CurvePath();
     curve.add(new THREE.LineCurve3(new THREE.Vector3(-800, 150, 125), new THREE.Vector3(0, 0, 125)));
     curve.add(new HelixCurve(125, 3, 150));
-    curve.add(new THREE.LineCurve3(new THREE.Vector3(0, 150, 125), new THREE.Vector3(250, 150, 125)));
+    curve.add(new THREE.LineCurve3(new THREE.Vector3(0, 150, 125), new THREE.Vector3(1000, 150, 125)));
 
     // show fly path with line
     var geometry = new THREE.Geometry();
@@ -72,9 +79,9 @@ function init() {
         color: 0xff00f0,
     });
     var line = new THREE.Line(geometry, material);
-    scene.add(line);
+//    scene.add(line);
 
-    airPlane = makeAirPlane();;
+    airPlane = makeAirPlane();
     scene.add(airPlane);
 
     posEventHandler = new PosEventHandler(posEvents);
@@ -101,7 +108,7 @@ function leftTurn(p) {
     v3.sub(v2);
     v2.sub(v1);
     v2.cross(v3);
-    return -3 * v2.y;
+    return -1.5 * v2.y;
 
     return 0;
 }
@@ -112,7 +119,7 @@ function setBoxPos() {
     axis.crossVectors(up, tangent).normalize();
     var pitch = Math.acos(up.dot(tangent));
 
-    bankAngle += (leftTurn(curvePos + .02) - bankAngle) * 0.07;
+    bankAngle += (leftTurn(curvePos + .02) + (Math.random() - 0.5) * 0.2 - bankAngle) * 0.07;
     airPlane.rotation.set(
         bankAngle, Math.atan2(axis.x, axis.z) + Math.PI, -pitch,
         'YXZ');
@@ -124,10 +131,10 @@ function moveBox() {
     if (curvePos <= 1) {
         setBoxPos();
         if (previousCounter < curvePos) {
-            addTubePart(previousCounter, curvePos, colors[Math.floor(curvePos * 10) % 4]);
+//            addTubePart(previousCounter, curvePos, colors[Math.floor(curvePos * 10) % 4]);
         }
         previousCounter = curvePos;
-        curvePos += 0.0025
+        curvePos += 0.001
         changed = true;
     } else {
         curvePos = 0;
@@ -136,7 +143,7 @@ function moveBox() {
 }
 
 function animate() {
-    requestAnimationFrame(animate, 1000 / 40);
+    requestAnimationFrame(animate, 1000 / 30);
     if (running) {
         moveBox();
     }
@@ -148,6 +155,7 @@ function render() {
     if (changed) {
         renderer.render(scene, camera);
         changed = false;
+        console.log('changed');
     }
 }
 
@@ -308,8 +316,35 @@ function addTag(pos, text) {
     text.position = pos;
     text.rotation.y = Math.atan2(axis.x, axis.z) + Math.PI / 2;
     scene.add(text);
+}
 
+function makeTerrain(terrainWidth, terrainHeight, terrainSegments, terrainSmoothingFactor, texture) {
+    var terrainGeneration = new TerrainGeneration(terrainWidth, terrainHeight, terrainSegments, terrainSmoothingFactor);
+    var terrainVertices = terrainGeneration.diamondSquare();
+    var terrainGeometry = new THREE.PlaneGeometry(terrainWidth, terrainHeight, terrainSegments, terrainSegments);
+    var index = 0;
+    for (var i = 0; i <= terrainSegments; i++) {
+        for (var j = 0; j <= terrainSegments; j++) {
+            terrainGeometry.vertices[index++].z = terrainVertices[i][j];
+        }
+    }
+    var terrainMaterial;
+    if (texture !== null) {
+        terrainMaterial = new THREE.MeshBasicMaterial({
+            map: THREE.ImageUtils.loadTexture(texture)
+        });
+    }
+    else {
+        terrainMaterial = new THREE.MeshBasicMaterial({
+            color: 0x000000,
+            wireframe: true
+        });
+    }
 
+    var terrain = new THREE.Mesh(terrainGeometry, terrainMaterial);
+    terrain.rotation.x = Math.PI / 180 * (-90);
+    terrain.position.y -= 100;
+    return terrain;
 }
 
 </script>
