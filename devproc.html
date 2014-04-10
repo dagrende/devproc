@@ -28,18 +28,10 @@ var tangent = new THREE.Vector3();
 var axis = new THREE.Vector3();
 var up = new THREE.Vector3(0, 1, 0);
 
+var totLength, curveLengths;
+
 // add code here to get invoked at specified curve positions (0=start, 1=end)
-var posEvents = [
-    {pos: 0.3, event: function(curvePos) {
-        addTag(curve.getPointAt(curvePos), 'one');
-    }},
-    {pos: 0.4, event: function(curvePos) {
-        addTag(curve.getPointAt(curvePos), 'two');
-    }},
-    {pos: 0.5, event: function(curvePos) {
-        addTag(curve.getPointAt(curvePos), 'three');
-    }}
-];
+var posEvents;
 
 function init() {
     renderer = new THREE.WebGLRenderer({alpha: true});
@@ -84,7 +76,21 @@ function init() {
     airPlane = makeAirPlane();
     scene.add(airPlane);
 
-    posEventHandler = new PosEventHandler(posEvents);
+    totLength = curve.getLength();
+    curveLengths = curve.getCurveLengths();
+
+    posEventHandler = new PosEventHandler([
+        {pos: 0.3, event: function(curvePos) {
+            addTag(curve.getPointAt(curvePos), 'one');
+        }},
+        {pos: 0.4, event: function(curvePos) {
+            addTag(curve.getPointAt(curvePos), 'two');
+        }},
+        {pos: 0.5, event: function(curvePos) {
+            addTag(curve.getPointAt(curvePos), 'three');
+        }}
+    ]);
+
     setBoxPos();
     animate();
 }
@@ -130,11 +136,12 @@ function setBoxPos() {
 function moveBox() {
     if (curvePos <= 1) {
         setBoxPos();
-        if (previousCounter < curvePos) {
-//            addTubePart(previousCounter, curvePos, colors[Math.floor(curvePos * 10) % 4]);
+        helixStart = curveLengths[0] / totLength;
+        if (curvePos > helixStart && previousCounter < curvePos) {
+            addTubePart(previousCounter, curvePos, colors[Math.floor(curvePos * 10) % 4]);
         }
         previousCounter = curvePos;
-        curvePos += 0.001
+        curvePos += 0.0005
         changed = true;
     } else {
         curvePos = 0;
@@ -176,6 +183,10 @@ function addTubePart(from, to, color) {
     var tube = new THREE.TubeGeometry(curvePart, 1, 5, 5, false, false);
     var tm = new THREE.Mesh(tube, new THREE.MeshLambertMaterial({color: color}));
     scene.add(tm);
+}
+
+function addSmokePart(from, to, color) {
+
 }
 
 var HelixCurve = new THREE.Curve.create(
